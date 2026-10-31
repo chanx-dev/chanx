@@ -108,6 +108,18 @@ dependencies = [
   "pydantic>=2,<3"
 ]
 description = "Typed WebSocket APIs for Python: routing, validation, broadcasting, AsyncAPI docs and typed clients for Django Channels, FastAPI and ASGI."
+keywords = [
+  "asgi",
+  "asyncapi",
+  "django",
+  "django-channels",
+  "fastapi",
+  "pydantic",
+  "realtime",
+  "typed",
+  "websocket",
+  "websockets"
+]
 license = {file = "LICENSE"}
 name = "chanx"
 readme = "README.md"
@@ -146,8 +158,10 @@ fast_channels = [
 chanx = "chanx.cli.main:cli"
 
 [project.urls]
+Changelog = "https://github.com/chanx-dev/chanx/blob/main/CHANGELOG.md"
 Documentation = "https://python.chanx.dev/"
-Homepage = "https://github.com/chanx-dev/chanx"
+Homepage = "https://chanx.dev"
+Issues = "https://github.com/chanx-dev/chanx/issues"
 Repository = "https://github.com/chanx-dev/chanx"
 
 [tool.black]
