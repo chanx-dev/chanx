@@ -16,6 +16,8 @@ from django.conf import settings
 from django.core.signals import setting_changed
 from rest_framework.settings import APISettings
 
+from chanx.core.errors import ErrorFormat
+
 
 @dataclass
 class MySetting:
@@ -31,6 +33,7 @@ class MySetting:
         SEND_MESSAGE_IMMEDIATELY: Whether to yield control after sending messages (default: True)
         SEND_AUTHENTICATION_MESSAGE: Whether to send auth status after connection (default: True)
         CAMELIZE: Whether to convert keys to camelCase in messages (default: False)
+        ERROR_FORMAT: Shape of error payloads, "standard" or "pydantic" (default: "standard")
         LOG_WEBSOCKET_MESSAGE: Whether to log websocket messages (default: False)
         LOG_IGNORED_ACTIONS: Message actions that should not be logged (default: empty list)
         WEBSOCKET_BASE_URL: WebSocket URL for overriding (default: None)
@@ -53,6 +56,7 @@ class MySetting:
     SEND_MESSAGE_IMMEDIATELY: bool = True
     SEND_AUTHENTICATION_MESSAGE: bool = True
     CAMELIZE: bool = False
+    ERROR_FORMAT: ErrorFormat = "standard"
 
     LOG_WEBSOCKET_MESSAGE: bool = False
     LOG_IGNORED_ACTIONS: Iterable[str] = dataclasses.field(default_factory=list[str])

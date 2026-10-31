@@ -25,6 +25,7 @@ You configure chanx by creating a base consumer class and setting class attribut
 
         # Message formatting
         camelize = False  # Whether to convert between camelCase and snake_case
+        error_format = "standard"  # "pydantic" for raw Pydantic error lists
         discriminator_field = "action"  # Field used for message type discrimination
 
         # Channel layer configuration (required for non-Django frameworks)
@@ -80,6 +81,7 @@ Configurable Attributes Reference
 **Message Formatting**
 
 - **camelize** (ClassVar[bool]): Whether to convert between camelCase and snake_case (default: False)
+- **error_format** (ClassVar[str]): Shape of ``error`` payloads: ``"standard"`` or ``"pydantic"`` (default: ``"standard"``). See :ref:`protocol-errors`.
 - **discriminator_field** (ClassVar[str]): Field used for message type discrimination (default: "action")
 
 **Channel Layer**
@@ -103,6 +105,7 @@ For Django projects, you can use the ``CHANX`` settings dictionary in addition t
         # Message configuration
         'MESSAGE_ACTION_KEY': 'action',  # Field used for message type discrimination
         'CAMELIZE': False,  # Whether to convert between camelCase and snake_case
+        'ERROR_FORMAT': 'standard',  # 'pydantic' for raw Pydantic error lists
 
         # Completion messages
         'SEND_COMPLETION': False,  # Whether to send completion message after processing

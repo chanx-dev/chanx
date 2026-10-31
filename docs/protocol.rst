@@ -121,10 +121,139 @@ framework signals rather than application messages.
      - server
      - Confirm a subscribe or unsubscribe.
 
+.. _protocol-errors:
+
 Errors
 ------
 
-Errors never close the connection. The ``payload`` takes one of three shapes.
+Errors never close the connection. The ``payload`` shape depends on ``error_format``
+(``ERROR_FORMAT`` on Django). The default, ``"standard"``, is the cross-language format
+that every chanx implementation targets. ``"pydantic"`` keeps chanx's earlier payloads,
+which pass Pydantic's error list through as is.
+
+Standard format
+~~~~~~~~~~~~~~~
+
+The payload is an `RFC 9457 <https://www.rfc-editor.org/rfc/rfc9457>`_ problem details
+object. Validation failures add an ``errors`` extension in the shape of the RFC's own
+validation example (section 3), with a ``keyword`` naming the JSON Schema keyword that
+failed:
+
+.. code-block:: json
+
+    {"action": "error", "ref": "r1", "version": 1, "payload": {
+        "type": "https://chanx.dev/errors/validation-failed",
+        "title": "Message failed validation",
+        "detail": "2 validation errors",
+        "errors": [
+            {"keyword": "required", "pointer": "/payload", "property": "message", "detail": "Field required"},
+            {"keyword": "minLength", "pointer": "/payload/title", "detail": "String should have at least 2 characters"}
+        ]
+    }}
+
+``type`` identifies the problem and is what clients branch on. ``title`` is fixed per
+type; ``detail`` describes this occurrence. Both are for people: clients should not
+parse them, and their wording differs between implementations.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 25 35
+
+   * - ``type``
+     - ``title``
+     - When
+   * - ``https://chanx.dev/errors/validation-failed``
+     - Message failed validation
+     - The frame does not match a message the consumer or topic accepts. Has ``errors``.
+   * - ``https://chanx.dev/errors/invalid-json``
+     - Frame is not valid JSON
+     - The frame is not JSON, or is a binary frame.
+   * - ``https://chanx.dev/errors/handler-failed``
+     - Message handler failed
+     - A handler raised. The exception is logged on the server and not sent.
+   * - ``https://chanx.dev/errors/internal-error``
+     - Message could not be processed
+     - The frame could not be processed for another reason.
+   * - ``https://chanx.dev/errors/unknown-topic``
+     - Unknown topic
+     - No mounted topic matches the name.
+   * - ``https://chanx.dev/errors/unauthorized``
+     - Subscription not allowed
+     - The topic's ``authorize`` hook refused the subscription.
+   * - ``https://chanx.dev/errors/not-subscribed``
+     - Not subscribed to topic
+     - A message was sent to a topic this connection has not joined.
+
+Each entry in ``errors`` has:
+
+- ``keyword``: the JSON Schema keyword the value fails, as the message's schema in the
+  AsyncAPI document states it: ``required``, ``type``, ``enum``, ``minLength``,
+  ``maxLength``, ``pattern``, ``minimum``, ``maximum``, ``exclusiveMinimum``,
+  ``exclusiveMaximum``, ``multipleOf``, ``minItems``, ``maxItems``,
+  ``additionalProperties`` or ``format``. Checks a schema cannot express, such as a
+  custom validator, use ``custom``.
+- ``pointer``: an `RFC 6901 <https://www.rfc-editor.org/rfc/rfc6901>`_ JSON Pointer to
+  the failing value in the frame as the client sent it (camelized keys appear
+  camelized). It always points at a value that exists, so for ``required`` it points at
+  the object that lacks the member.
+- ``property``: for ``required`` only, the name of the missing member. Join it to
+  ``pointer`` to locate the field.
+- ``detail``: a human-readable message.
+
+An unknown action is ``enum`` at ``/action``; a frame without one is ``required`` at
+``""`` with ``property`` ``action``. ``const`` mismatches are reported as ``enum``, so a
+consumer with one message type reports an unknown action the same way as one with
+many.
+
+How this relates to the standards it builds on:
+
+- RFC 9457 defines problem details for HTTP. chanx sends the same object inside an
+  ``error`` frame, so there is no HTTP status and ``status`` is never sent. Clients
+  must ignore members they do not recognize (RFC 9457 section 3.2).
+- ``pointer`` follows the rule in JSON Schema output (2020-12, section 12) and JSON:API
+  that a location names a value that exists, which is why ``required`` reports the
+  parent. ``keyword`` names the keyword where JSON Schema output gives a path into the
+  schema (``keywordLocation``); that path depends on how each implementation lays out
+  its schema, so it cannot match across languages.
+
+Each implementation exposes the payload as a type: ``ProblemDetails`` and
+``ValidationFailure`` in ``chanx.core.errors`` (Python), ``protocol.ProblemDetails`` and
+``protocol.ValidationFailure`` (Go), and ``ProblemDetails`` and ``ValidationFailure`` with
+an ``isProblem()`` guard in ``@chanx-js/client`` and ``@chanx-js/server``. ``problem()``
+(``protocol.NewProblem`` in Go) builds a payload for a handler that sends its own.
+
+The payload validates against this schema:
+
+.. code-block:: json
+
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": ["type", "title", "detail"],
+      "properties": {
+        "type": {"type": "string", "format": "uri"},
+        "title": {"type": "string"},
+        "detail": {"type": "string"},
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["keyword", "pointer", "detail"],
+            "properties": {
+              "keyword": {"type": "string"},
+              "pointer": {"type": "string", "format": "json-pointer"},
+              "property": {"type": ["string", "integer"]},
+              "detail": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+
+Pydantic format
+~~~~~~~~~~~~~~~
+
+The ``payload`` takes one of three shapes.
 
 **Validation errors** are a list of Pydantic error objects with ``type``, ``loc`` and
 ``msg``. Unknown actions, missing fields, bad envelope types, invalid JSON and binary
@@ -143,24 +272,13 @@ frames all use this shape:
     ]}
 
 **Handler failures** are an object with a ``detail`` string, such as
-``{"detail": "Failed to process message for echo"}``. The exception itself is logged on
-the server and not sent.
+``{"detail": "Failed to process message for echo"}``.
 
-**Topic errors** are an object with a machine-readable ``reason`` and a ``detail``, sent
-on the topic the frame addressed:
+**Topic errors** are an object with a ``reason`` (``unknown_topic``, ``unauthorized`` or
+``not_subscribed``) and a ``detail``, sent on the topic the frame addressed.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 25 75
-
-   * - ``reason``
-     - When
-   * - ``unknown_topic``
-     - No mounted topic matches the name.
-   * - ``unauthorized``
-     - The topic's ``authorize`` hook refused the subscription.
-   * - ``not_subscribed``
-     - A message was sent to a topic this connection has not joined.
+Custom errors
+~~~~~~~~~~~~~
 
 Consumers can override ``handle_validation_error``, ``handle_json_processing_error`` and
 ``handle_message_handler_error`` to change these payloads.

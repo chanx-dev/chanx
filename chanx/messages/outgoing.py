@@ -37,7 +37,8 @@ class ErrorMessage(BaseMessage):
     Error message for communicating issues to the client.
 
     Attributes:
-        payload: Error information dictionary with 'detail' field and optional error codes
+        payload: A problem from ``chanx.core.errors.problem()``, or with
+            ``error_format = "pydantic"`` Pydantic's error list or ``{"detail": ...}``
     """
 
     action: Literal["error"] = "error"

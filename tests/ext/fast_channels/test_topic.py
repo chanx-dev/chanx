@@ -528,9 +528,8 @@ async def test_a_frame_that_is_not_json_gets_an_error_and_keeps_the_socket(
         reply = await comm.receive_json_from(timeout=2)
 
         assert reply["action"] == "error"
-        [error] = reply["payload"]
-        assert error["type"] == "json_invalid"
-        assert error["msg"].startswith(detail)
+        assert reply["payload"]["type"] == "https://chanx.dev/errors/invalid-json"
+        assert reply["payload"]["detail"].startswith(detail)
 
         pong = await _send(comm, {"action": "ping"})
         assert pong["action"] == "pong"

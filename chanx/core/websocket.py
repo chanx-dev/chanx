@@ -40,6 +40,13 @@ from chanx.core.envelope import (
     current_seq,
     strip_envelope,
 )
+from chanx.core.errors import (
+    ErrorFormat,
+    ErrorType,
+    current_input,
+    problem,
+    validation_problem,
+)
 from chanx.core.registry import message_registry
 from chanx.messages.base import BaseMessage
 from chanx.messages.outgoing import (
@@ -64,6 +71,12 @@ if TYPE_CHECKING:
 
 ReceiveEvent = TypeVar("ReceiveEvent", bound=BaseMessage, default=BaseMessage)
 
+_TOPIC_ERROR_TYPES = {
+    TopicErrorReason.UNKNOWN_TOPIC: ErrorType.UNKNOWN_TOPIC,
+    TopicErrorReason.UNAUTHORIZED: ErrorType.UNAUTHORIZED,
+    TopicErrorReason.NOT_SUBSCRIBED: ErrorType.NOT_SUBSCRIBED,
+}
+
 
 class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
     """
@@ -82,6 +95,7 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
 
     # Class-level configuration
     camelize: ClassVar[bool]
+    error_format: ClassVar[ErrorFormat]
     discriminator_field: ClassVar[str] = (
         "action"  # Field used for message type discrimination
     )
@@ -523,6 +537,13 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
         return config.camelize
 
     @property
+    def uses_standard_errors(self) -> bool:
+        """Whether error payloads follow the standard format (``error_format``)."""
+        if hasattr(self, "error_format"):
+            return self.error_format != "pydantic"
+        return config.error_format != "pydantic"
+
+    @property
     def all_log_ignored_actions(self) -> set[str]:
         """
         Get the complete set of actions that should be ignored during logging.
@@ -665,6 +686,7 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
                     RuntimeError("No message handlers registered on this consumer")
                 )
                 return
+            current_input.set(content)
             message = self.incoming_message_adapter.validate_python(content)
             await self.receive_message(message)
 
@@ -775,9 +797,11 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
             message: The message that caused the error
         """
         # Default implementation - subclasses can override
-        await self.send_message(
-            ErrorMessage(payload={"detail": f"Failed to process message for {action}"})
-        )
+        detail = f"Failed to process message for {action}"
+        payload: Any = {"detail": detail}
+        if self.uses_standard_errors:
+            payload = problem(ErrorType.HANDLER_FAILED, detail)
+        await self.send_message(ErrorMessage(payload=payload))
         await logger.aexception(f"Handler error for action '{action}': {error}")
 
     # Group operations methods
@@ -1065,7 +1089,11 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
         try:
             envelope = Envelope.model_validate(content)
         except ValidationError as e:
-            await self.handle_validation_error(e)
+            token = current_input.set(content)
+            try:
+                await self.handle_validation_error(e)
+            finally:
+                current_input.reset(token)
             return
 
         message_data = strip_envelope(content)
@@ -1213,9 +1241,10 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
     ) -> None:
         """Report a topic-level failure, with a reason the client can branch on."""
         await logger.awarning("Topic error", topic=topic, reason=reason, detail=detail)
-        await self.send_topic_message(
-            topic, ErrorMessage(payload={"reason": reason, "detail": detail})
-        )
+        payload: Any = {"reason": reason, "detail": detail}
+        if self.uses_standard_errors:
+            payload = problem(_TOPIC_ERROR_TYPES[reason], detail)
+        await self.send_topic_message(topic, ErrorMessage(payload=payload))
 
     async def handle_validation_error(self, error: ValidationError) -> None:
         """
@@ -1226,13 +1255,17 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
         Args:
             error: The ValidationError that occurred
         """
-        await self.send_message(
-            ErrorMessage(
-                payload=error.errors(
-                    include_url=False, include_context=False, include_input=False
-                )
+        if self.uses_standard_errors:
+            payload: Any = validation_problem(
+                error,
+                discriminator=self.discriminator_field,
+                camelize=self.should_camelize,
             )
-        )
+        else:
+            payload = error.errors(
+                include_url=False, include_context=False, include_input=False
+            )
+        await self.send_message(ErrorMessage(payload=payload))
 
     async def handle_json_processing_error(self, error: Exception) -> None:
         """
@@ -1243,9 +1276,11 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
         Args:
             error: The exception that occurred
         """
-        await self.send_message(
-            ErrorMessage(payload={"detail": "Failed to process message"})
-        )
+        detail = "Failed to process message"
+        payload: Any = {"detail": detail}
+        if self.uses_standard_errors:
+            payload = problem(ErrorType.INTERNAL_ERROR, detail)
+        await self.send_message(ErrorMessage(payload=payload))
         # Log the actual error for debugging
         await logger.aexception(f"Failed to process message: {str(error)}")
 

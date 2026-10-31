@@ -110,11 +110,11 @@ class TestTopicsOverChannels(WebsocketTestCase):
 
         await self.auth_communicator.send_to(text_data="not json")
         reply = await self.auth_communicator.receive_json_from()
-        assert reply["payload"][0]["type"] == "json_invalid"
+        assert reply["payload"]["type"] == "https://chanx.dev/errors/invalid-json"
 
         await self.auth_communicator.send_to(bytes_data=b"\x01")
         reply = await self.auth_communicator.receive_json_from()
-        assert reply["payload"][0]["type"] == "json_invalid"
+        assert reply["payload"]["type"] == "https://chanx.dev/errors/invalid-json"
 
         await self.auth_communicator.send_message(PingMessage())
         reply = await self.auth_communicator.receive_json_from()
@@ -132,7 +132,7 @@ class TestTopicsOverChannels(WebsocketTestCase):
 
         denied = await self.auth_communicator.subscribe("private:secret")
         assert denied["action"] == "error"
-        assert denied["payload"]["reason"] == "unauthorized"
+        assert denied["payload"]["type"] == "https://chanx.dev/errors/unauthorized"
 
         allowed = await self.auth_communicator.subscribe("private:open", ref="2")
         assert allowed["action"] == "subscribed"
@@ -141,7 +141,7 @@ class TestTopicsOverChannels(WebsocketTestCase):
         await self.auth_communicator.connect()
 
         unknown = await self.auth_communicator.subscribe("nope:1")
-        assert unknown["payload"]["reason"] == "unknown_topic"
+        assert unknown["payload"]["type"] == "https://chanx.dev/errors/unknown-topic"
 
     async def test_broadcast_reaches_the_subscribed_topic(self) -> None:
         await self.auth_communicator.connect()

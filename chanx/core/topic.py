@@ -78,6 +78,11 @@ class Topic(ChanxWebsocketConsumerMixin[ReceiveEvent]):
         """Frames share the consumer's connection, so follow its wire format."""
         return self.consumer.should_camelize
 
+    @property
+    def uses_standard_errors(self) -> bool:
+        """Errors share the consumer's connection, so follow its format."""
+        return self.consumer.uses_standard_errors
+
     @classmethod
     def group_name(cls, topic: str) -> str:
         """

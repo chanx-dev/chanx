@@ -374,7 +374,8 @@ Then, in the browser console:
     // every connected client: {action: "notification", payload: {alert: "Broadcast: Hi all", level: "info"}}
 
     ws.send(JSON.stringify({ action: "echo", payload: {} }));
-    // {action: "error", payload: [{type: "missing", loc: [...], msg: "Field required"}]}
+    // {action: "error", payload: {type: "https://chanx.dev/errors/validation-failed", title: "Message failed validation",
+    //   detail: "1 validation error", errors: [{keyword: "required", pointer: "/payload", property: "message", detail: "Field required"}]}}
 
 6. Send events from your server code
 ------------------------------------

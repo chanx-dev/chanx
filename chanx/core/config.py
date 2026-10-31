@@ -8,6 +8,7 @@ from collections.abc import Collection
 from typing import Any
 
 from .check import IS_USING_DJANGO
+from .errors import ErrorFormat
 
 
 class Config:
@@ -24,6 +25,7 @@ class Config:
         camelize: Whether to camelize field names.
         discriminator_field: Field name used for message discrimination.
         send_authentication_message: Whether authenticators send their result.
+        error_format: Shape of error payloads, "standard" or "pydantic".
     """
 
     send_completion: bool = False
@@ -33,6 +35,7 @@ class Config:
     camelize: bool = False
     discriminator_field: str = "action"
     send_authentication_message: bool = True
+    error_format: ErrorFormat = "standard"
 
     def __getattribute__(self, item: str) -> Any:
         """Get attribute value, preferring Django settings when available.
