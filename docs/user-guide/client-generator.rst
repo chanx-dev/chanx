@@ -354,6 +354,7 @@ The generated ``base/client.py`` provides the foundation for all channel clients
 - ``handle_websocket_connection_error(error)``: Handle connection errors
 - ``handle_raw_data(message)``: Handle non-JSON data
 - ``handle_invalid_message(invalid_message)``: Handle validation errors
+- ``handle_error_message(problem, frame)``: Handle an ``error`` frame from the server
 
 Channel Clients
 ~~~~~~~~~~~~~~~
@@ -547,6 +548,26 @@ Override error handlers for custom error processing:
             logger.warning(f"Invalid message: {invalid_message}")
             # Default implementation prints traceback
             # Override to customize behavior
+
+``error`` frames from the server go to ``handle_error_message`` instead, with the payload
+parsed as a ``ProblemDetails`` (see :ref:`protocol-errors`). Branch on ``problem.type`` with the
+``ErrorType`` constants; ``problem`` is ``None`` when the server sends another shape,
+such as ``error_format = "pydantic"``:
+
+.. code-block:: python
+
+    from my_client.base.errors import ErrorType, ProblemDetails
+
+    class MyChatClient(ChatClient):
+        async def handle_error_message(
+            self, problem: ProblemDetails | None, frame: dict[str, Any]
+        ) -> None:
+            if problem and problem.type == ErrorType.VALIDATION_FAILED:
+                for error in problem.errors or []:
+                    logger.warning(f"{error.pointer}: {error.keyword}")
+
+Topic clients get the same hook on each topic handle, and a reply from ``request()`` or
+``subscribe()`` that is an error carries the parsed payload as ``reply.problem``.
 
 Advanced Features
 -----------------

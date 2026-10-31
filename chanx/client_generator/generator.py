@@ -134,7 +134,12 @@ class ClientGenerator:
 
         # Only regenerate base if it doesn't exist or override_base is True
         if self.override_base or not target_base_dir.exists():
-            shutil.copytree(source_base_dir, target_base_dir, dirs_exist_ok=True)
+            shutil.copytree(
+                source_base_dir,
+                target_base_dir,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
 
     def _generate_shared_schemas(self) -> None:
         """Generate shared message schemas used across multiple channels."""

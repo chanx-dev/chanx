@@ -10,6 +10,8 @@ from typing import Annotated, Any
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from websockets.asyncio.client import ClientConnection, connect
 
+from .errors import ERROR_ACTION, ProblemDetails, parse_problem
+
 
 class BaseClient:
     """Base WebSocket client class."""
@@ -122,6 +124,11 @@ class BaseClient:
         Args:
             py_object: The decoded JSON frame
         """
+        if py_object.get(self.discriminator_field) == ERROR_ACTION:
+            await self.handle_error_message(
+                parse_problem(py_object.get("payload")), py_object
+            )
+            return
         try:
             message = self.incoming_message_adapter.validate_python(py_object)
             await self.handle_message(message)
@@ -189,6 +196,22 @@ class BaseClient:
                      In subclasses, this will be a typed union of valid incoming messages.
         """
         pass
+
+    async def handle_error_message(
+        self, problem: ProblemDetails | None, frame: dict[str, Any]
+    ) -> None:
+        """
+        Handle an error frame from the server. Override it and branch on ``problem.type``.
+
+        Args:
+            problem: The payload as a ProblemDetails, or None when the server sent
+                another shape (``error_format = "pydantic"`` or a custom hook)
+            frame: The whole error frame
+        """
+        if problem is None:
+            print(f"Server error: {frame.get('payload')}")
+        else:
+            print(f"Server error: {problem.title}: {problem.detail}")
 
     async def handle_raw_data(self, message: str | bytes) -> None:
         """

@@ -190,7 +190,8 @@ Extend the generated client classes and override `handle_message` to process inc
 
 ```python
 import asyncio
-from typing import assert_never
+from typing import Any, assert_never
+from {{ package_name }}.base.errors import ErrorType, ProblemDetails
 from {{ package_name }}.{{ first_channel }} import {{ first_class }}, IncomingMessage
 
 class My{{ first_class }}({{ first_class }}):
@@ -205,6 +206,14 @@ class My{{ first_class }}({{ first_class }}):
                 # Handle this message type
             case _:
                 assert_never(message)
+
+    async def handle_error_message(
+        self, problem: ProblemDetails | None, frame: dict[str, Any]
+    ) -> None:
+        # An error frame from the server: branch on its type
+        if problem and problem.type == ErrorType.VALIDATION_FAILED:
+            for error in problem.errors or []:
+                print(f"{error.pointer}: {error.keyword} ({error.detail})")
 
     async def handle_error(self, error):
         # Handle errors during message processing

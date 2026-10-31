@@ -7,6 +7,7 @@ from typing import Annotated, Any, Self, TypeVar
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from .client import BaseClient
+from .errors import ERROR_ACTION, ProblemDetails, parse_problem
 
 ENVELOPE_VERSION = 1
 
@@ -18,6 +19,13 @@ class ProtocolMessage(BaseModel):
 
     action: str
     payload: Any = None
+
+    @property
+    def problem(self) -> ProblemDetails | None:
+        """The error's payload as a ProblemDetails; None for other frames or shapes."""
+        if self.action != ERROR_ACTION:
+            return None
+        return parse_problem(self.payload)
 
 
 class BaseTopicHandle:
@@ -85,6 +93,11 @@ class BaseTopicHandle:
 
     async def dispatch_frame(self, py_object: dict[str, Any]) -> None:
         """Validate a frame addressed to this topic and hand it to the handler."""
+        if py_object.get("action") == ERROR_ACTION:
+            await self.handle_error_message(
+                parse_problem(py_object.get("payload")), py_object
+            )
+            return
         try:
             message = self.incoming_message_adapter.validate_python(py_object)
         except ValidationError:
@@ -94,6 +107,11 @@ class BaseTopicHandle:
 
     async def handle_message(self, message: Any) -> None:
         """Handle a message pushed on this topic. Override in subclasses."""
+
+    async def handle_error_message(
+        self, problem: ProblemDetails | None, frame: dict[str, Any]
+    ) -> None:
+        """Handle an error pushed on this topic, such as not-subscribed."""
 
     async def handle_invalid_message(self, py_object: dict[str, Any]) -> None:
         """Handle a frame that did not match this topic's messages."""
