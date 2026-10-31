@@ -20,7 +20,9 @@ from chanx.asyncapi.constants import (
 )
 from chanx.asyncapi.type_defs import ChannelObject, ParameterObject, ServerObject
 from chanx.core.authenticator import Credential
+from chanx.core.config import config
 from chanx.core.decorators import OutputType
+from chanx.core.errors import PROBLEM_SCHEMAS
 from chanx.core.registry import UNION_TYPES, message_registry
 from chanx.core.websocket import ChanxWebsocketConsumerMixin
 from chanx.messages.base import BaseMessage
@@ -106,9 +108,18 @@ class AsyncAPIGenerator:
         self.build_channels()
         self.build_operations()
 
+        schemas = dict(message_registry.schema_objects)
+        if config.error_format != "pydantic":
+            # Error frames are not channel messages, so only their payload is listed.
+            if clash := sorted(schemas.keys() & PROBLEM_SCHEMAS.keys()):
+                raise ValueError(
+                    f"A model is titled {clash[0]!r}, a name chanx uses for error "
+                    "payloads; give it another title"
+                )
+            schemas.update(PROBLEM_SCHEMAS)
         components: dict[str, Any] = {
             "messages": dict(sorted(message_registry.message_objects.items())),
-            "schemas": dict(sorted(message_registry.schema_objects.items())),
+            "schemas": dict(sorted(schemas.items())),
         }
         self._add_correlation_ids(components)
         if self.security_schemes:

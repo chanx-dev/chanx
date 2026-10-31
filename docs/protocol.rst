@@ -222,6 +222,12 @@ Each implementation exposes the payload as a type: ``ProblemDetails`` and
 an ``isProblem()`` guard in ``@chanx-js/client`` and ``@chanx-js/server``. ``problem()``
 (``protocol.NewProblem`` in Go) builds a payload for a handler that sends its own.
 
+AsyncAPI documents list ``ProblemDetails``, the schema of RFC 9457 Appendix A plus the
+``errors`` extension, and ``ValidationFailure`` under ``components.schemas`` when the
+standard format is on. No channel refers to them, since error frames are framework frames
+rather than channel messages, but client generators turn them into types. A model of
+yours with either name is refused when the document is generated.
+
 The payload validates against this schema:
 
 .. code-block:: json

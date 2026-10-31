@@ -7,9 +7,11 @@ Tests the AsyncAPI 3.0 specification generator functionality.
 from typing import Any, ClassVar, Literal
 from unittest.mock import Mock
 
+import pytest
 from chanx.asyncapi.generator import AsyncAPIGenerator
 from chanx.channels.websocket import AsyncJsonWebsocketConsumer
 from chanx.core.decorators import channel, event_handler, ws_handler
+from chanx.core.registry import message_registry
 from chanx.messages.base import BaseMessage
 from chanx.routing.discovery import RouteInfo
 from pydantic import BaseModel
@@ -110,6 +112,34 @@ class TestAsyncAPIGenerator:
         # With no routes, channels and operations should be empty
         assert spec["channels"] == {}
         assert spec["operations"] == {}
+
+    def test_error_payload_schemas_follow_the_error_format(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The standard format lists its payload schemas; the Pydantic one does not."""
+        schemas = AsyncAPIGenerator([]).generate()["components"]["schemas"]
+        assert schemas["ProblemDetails"]["required"] == ["type", "title", "detail"]
+        assert schemas["ValidationFailure"]["required"] == [
+            "keyword",
+            "pointer",
+            "detail",
+        ]
+
+        monkeypatch.setattr(
+            "chanx.asyncapi.generator.config", Mock(error_format="pydantic")
+        )
+        schemas = AsyncAPIGenerator([]).generate()["components"]["schemas"]
+        assert "ProblemDetails" not in schemas
+
+    def test_a_model_named_like_an_error_schema_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Error payload schemas never silently replace a user's model."""
+        monkeypatch.setitem(
+            message_registry.schema_objects, "ProblemDetails", {"type": "object"}
+        )
+        with pytest.raises(ValueError, match="'ProblemDetails'"):
+            AsyncAPIGenerator([]).generate()
 
     def test_generate_with_single_route(self) -> None:
         """Test generating spec with single route."""
