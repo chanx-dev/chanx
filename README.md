@@ -118,7 +118,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 register_channel_layer("default", InMemoryChannelLayer())  # use Redis in production
 
 app = FastAPI()
-app.add_websocket_route("/ws/chat", ChatConsumer.as_asgi())
+app.router.add_websocket_route("/ws/chat", ChatConsumer.as_asgi())
 
 
 @app.get("/asyncapi")

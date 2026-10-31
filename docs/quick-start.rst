@@ -312,7 +312,7 @@ consumer's groups. ``@event_handler`` receives events your server code sends.
          register_channel_layer("default", InMemoryChannelLayer())
 
          app = FastAPI()
-         app.add_websocket_route("/ws/chat/", ChatConsumer.as_asgi())
+         app.router.add_websocket_route("/ws/chat/", ChatConsumer.as_asgi())
 
          asyncapi_config = AsyncAPIConfig(title="My WebSocket API")
 
