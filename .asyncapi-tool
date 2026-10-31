@@ -1,15 +1,18 @@
----
-title: ChanX
-description: WebSocket framework for Django/FastAPI with AsyncAPI 3.0 spec generation and Python client generation from AsyncAPI schemas
+title: chanx
+description: Typed WebSocket framework for Django Channels, FastAPI and ASGI. Write one Pydantic-typed handler per message; chanx generates an AsyncAPI 3.0 spec and interactive docs from your code, and generates typed Python, TypeScript and Go clients from the spec.
 links:
-  docsUrl: https://python.chanx.dev/
+  websiteUrl: https://python.chanx.dev
+  docsUrl: https://python.chanx.dev
   repoUrl: https://github.com/chanx-dev/chanx
 filters:
-  language: python
+  language: Python
   technology:
-  - Django
-  - FastAPI
+    - Django
+    - FastAPI
+    - Pydantic
   categories:
-  - code-first
-  - code-generator
+    - code-first
+    - framework
+    - documentation-generator
+    - code-generator
   hasCommercial: false
