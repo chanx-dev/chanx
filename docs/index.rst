@@ -1,5 +1,9 @@
 :layout: landing
 :description: Typed WebSocket APIs for Python. Routing, validation, broadcasting, AsyncAPI docs and typed clients for Django Channels, FastAPI and any ASGI framework.
+:og:description: Typed WebSocket APIs for Python. Routing, validation, broadcasting, AsyncAPI docs and typed clients for Django Channels, FastAPI and any ASGI framework.
+
+.. meta::
+   :description: Typed WebSocket APIs for Python. Routing, validation, broadcasting, AsyncAPI docs and typed clients for Django Channels, FastAPI and any ASGI framework.
 
 chanx
 =====
