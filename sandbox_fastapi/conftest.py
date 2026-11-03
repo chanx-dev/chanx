@@ -1,6 +1,6 @@
+from collections.abc import AsyncIterator
 from typing import Any
 
-import pytest
 import pytest_asyncio
 from arq import create_pool
 from arq.worker import Worker
@@ -27,15 +27,18 @@ async def bg_worker() -> Any:
     await redis.aclose()
 
 
-@pytest.fixture(autouse=True, scope="session")
-def fresh_redis_layers(worker_id: str) -> None:
-    """Create fresh Redis layers for each test."""
-    # Clear all existing layers
-    if worker_id == "master":
-        wid = 0
-    else:
-        wid = int(worker_id.replace("gw", "")) % 16
-    channel_layers.clear()
+@pytest_asyncio.fixture(autouse=True)
+async def fresh_redis_layers(worker_id: str) -> AsyncIterator[None]:
+    """
+    Give each test its own layers, flushed on its own event loop afterwards.
 
-    # Re-setup with fresh instances
+    A layer keeps loop-bound state between calls (RedisChannelLayer's per-channel
+    receive locks, held until a cleaner task finishes), so one shared across tests
+    fails in a later test with "bound to a different event loop".
+    """
+    wid = 0 if worker_id == "master" else int(worker_id.replace("gw", "")) % 16
+    channel_layers.clear()
     setup_layers(True, wid)
+    yield
+    for alias in channel_layers.list_aliases():
+        await channel_layers[alias].flush()

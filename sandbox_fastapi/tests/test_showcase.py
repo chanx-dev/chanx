@@ -242,7 +242,6 @@ async def test_analytics_consumer_events_no_data() -> None:
         assert analytics_reply.payload.data is None
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.asyncio
 async def test_external_sender_broadcast() -> None:
     """Test external sender script broadcasts to all consumers."""
