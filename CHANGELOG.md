@@ -1,3 +1,11 @@
+## v2.14.0 (2026-11-03)
+
+### Feat
+
+- hand error frames to generated clients as typed problems
+- list the error payload schemas in AsyncAPI documents
+- send errors as RFC 9457 problem details
+
 ## v2.13.0 (2026-10-27)
 
 ### Feat
