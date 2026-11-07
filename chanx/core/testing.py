@@ -31,6 +31,21 @@ from chanx.core.config import config
 from chanx.core.websocket import ChanxWebsocketConsumerMixin
 from chanx.messages.base import BaseMessage
 
+INNER_RECEIVE_MARGIN = 5
+"""Seconds by which a collection's inner receive outlives the collection itself.
+
+``receive_all_json`` and ``receive_all_messages`` wrap their own timeout around
+``receive_json_from``. Handing the inner receive the same value puts both
+deadlines in the same event-loop iteration, so a late wake-up - a loaded test
+suite is enough - expires them together. asgiref reacts to the inner one by
+cancelling the ASGI application task
+(``ApplicationCommunicator.receive_output``), which kills the connection: the
+collection still returns what it had, but every later send on that
+communicator raises ``CancelledError`` from a stack that says nothing about
+why. Giving the inner receive a later deadline keeps the collection's own
+timeout the one that fires.
+"""
+
 
 @dataclass
 class CapturedTopicBroadcast:
@@ -205,7 +220,9 @@ class WebsocketCommunicatorMixin:
         try:
             async with async_timeout(timeout):
                 while True:
-                    raw_message = await self.receive_json_from(timeout)
+                    raw_message = await self.receive_json_from(
+                        timeout + INNER_RECEIVE_MARGIN
+                    )
                     json_list.append(raw_message)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             pass
@@ -237,7 +254,9 @@ class WebsocketCommunicatorMixin:
         try:
             async with async_timeout(timeout):
                 while True:
-                    raw_message = await self.receive_json_from(timeout)
+                    raw_message = await self.receive_json_from(
+                        timeout + INNER_RECEIVE_MARGIN
+                    )
 
                     if self._should_camelize:
                         raw_message = humps.decamelize(raw_message)
