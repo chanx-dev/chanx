@@ -1,5 +1,6 @@
 """Simple tests for BaseClient initialization."""
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any, Literal
@@ -140,3 +141,19 @@ async def test_no_headers_sends_none_rather_than_an_empty_dict() -> None:
         await TestClient("localhost:8000").handle()
 
     assert calls[0]["additional_headers"] is None
+
+
+async def test_default_handlers_log_instead_of_printing(
+    caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = object.__new__(BaseClient)
+
+    with caplog.at_level(logging.WARNING, logger="chanx.client"):
+        await client.handle_invalid_message({"action": "nope"})
+        await client.handle_error_message(None, {"payload": "boom"})
+
+    assert capsys.readouterr().out == ""
+    assert [r.getMessage() for r in caplog.records] == [
+        "Received invalid message that failed validation: {'action': 'nope'}",
+        "Server error: boom",
+    ]

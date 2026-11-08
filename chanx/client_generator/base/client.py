@@ -2,8 +2,8 @@
 
 import asyncio
 import json
+import logging
 from contextlib import suppress
-from traceback import print_exc
 from types import UnionType
 from typing import Annotated, Any
 
@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from websockets.asyncio.client import ClientConnection, connect
 
 from .errors import ERROR_ACTION, ProblemDetails, parse_problem
+
+logger = logging.getLogger("chanx.client")
 
 
 class BaseClient:
@@ -209,9 +211,9 @@ class BaseClient:
             frame: The whole error frame
         """
         if problem is None:
-            print(f"Server error: {frame.get('payload')}")
+            logger.warning("Server error: %s", frame.get("payload"))
         else:
-            print(f"Server error: {problem.title}: {problem.detail}")
+            logger.warning("Server error: %s: %s", problem.title, problem.detail)
 
     async def handle_raw_data(self, message: str | bytes) -> None:
         """
@@ -264,8 +266,11 @@ class BaseClient:
         Args:
             invalid_message: The parsed JSON object that failed validation
         """
-        print(f"Received invalid message that failed validation: {invalid_message}")
-        print_exc()
+        logger.warning(
+            "Received invalid message that failed validation: %s",
+            invalid_message,
+            exc_info=True,
+        )
 
 
 async def _settle(task: "asyncio.Future[None] | None") -> None:
