@@ -117,6 +117,9 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
     # Subscribed from the URL parameters on connect; un-addressed frames are its.
     default_topic: ClassVar[type["Topic[Any]"] | None] = None
 
+    # Cancel in-flight handlers on disconnect, for long work only the caller wants.
+    cancel_handlers_on_disconnect: ClassVar[bool] = False
+
     # Groups contributed by mixins, merged across the MRO. Kept separate from
     # ``groups``, which the underlying framework owns and shadows as usual.
     extra_groups: ClassVar[list[str]] = []
@@ -494,6 +497,7 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
         super().__init__(*args, **kwargs)
 
         self.subscriptions: dict[str, Topic[Any]] = {}
+        self._handler_tasks: set[asyncio.Task[Any]] = set()
         self._closed = False
         self._default_topic_value: str | None = None
 
@@ -606,6 +610,8 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
         """
         # A join_group still awaiting its add sees this and undoes it.
         self._closed = True
+        for task in list(self._handler_tasks):
+            task.cancel()
         for topic, subscription in list(self.subscriptions.items()):
             await subscription.on_unsubscribe()
             await self._leave_topic_group(topic, subscription)
@@ -664,10 +670,17 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
             if message_action not in self.all_log_ignored_actions:
                 await logger.ainfo("Websocket received")
 
-        create_task(self.handle_json(content, **kwargs))
+        self._track_handler(create_task(self.handle_json(content, **kwargs)))
 
         if token is not None:
             structlog.contextvars.reset_contextvars(**token)
+
+    def _track_handler(self, task: asyncio.Task[Any]) -> None:
+        """Track a handler task so disconnect can cancel it."""
+        if not self.cancel_handlers_on_disconnect:
+            return
+        self._handler_tasks.add(task)
+        task.add_done_callback(self._handler_tasks.discard)
 
     async def handle_json(self, content: dict[str, Any], **kwargs: Any) -> None:
         """
@@ -1115,7 +1128,7 @@ class ChanxWebsocketConsumerMixin(Generic[ReceiveEvent]):
 
         if self.should_camelize:
             message_data = humps.decamelize(message_data)
-        create_task(self._route_to_topic(envelope, message_data))
+        self._track_handler(create_task(self._route_to_topic(envelope, message_data)))
 
     async def _route_to_topic(
         self, envelope: Envelope, message_data: dict[str, Any]

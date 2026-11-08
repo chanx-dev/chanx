@@ -77,6 +77,7 @@ Configurable Attributes Reference
 - **send_message_immediately** (bool | None): Whether to yield control after sending messages (default: True)
 - **log_websocket_message** (bool | None): Whether to log websocket messages (default: False)
 - **log_ignored_actions** (Collection[str]): Message actions to ignore in logs (default: [])
+- **cancel_handlers_on_disconnect** (ClassVar[bool]): Cancel the connection's in-flight handlers when it disconnects, for handlers doing long work only their caller wants (default: False)
 
 **Message Formatting**
 

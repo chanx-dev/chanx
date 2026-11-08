@@ -639,6 +639,22 @@ Consumers can be configured via class attributes:
         # Authentication
         authenticator_class = MyAuthenticator
 
+Handlers After Disconnect
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Each incoming message runs its handler in a background task, and by default that task
+finishes even if the client disconnects first: its sends to the closed socket are dropped,
+while its other work (database writes, group broadcasts) still happens. For handlers doing
+long work only the caller wants, such as streaming an LLM reply, cancel them instead:
+
+.. code-block:: python
+
+    class AssistantConsumer(AsyncJsonWebsocketConsumer):
+        cancel_handlers_on_disconnect = True
+
+On disconnect, every in-flight handler of that connection gets ``asyncio.CancelledError``
+at its next ``await``. Use ``try/finally`` for any cleanup that must still run.
+
 Authentication Integration
 --------------------------
 
