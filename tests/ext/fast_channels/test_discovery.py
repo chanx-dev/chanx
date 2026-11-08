@@ -227,3 +227,21 @@ class TestFastAPIRouteDiscovery:
         # Should not modify routes (placeholder implementation)
         discovery._discover_from_consumers(routes, "ws://localhost:8000")
         assert routes == []
+
+
+def test_a_mount_prefix_parameter_is_a_route_parameter() -> None:
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        pass
+
+    app = Starlette(
+        routes=[
+            Mount(
+                "/ws/{tenant}",
+                Starlette(routes=[WebSocketRoute("/chat/{room}", websocket_endpoint)]),
+            )
+        ]
+    )
+
+    (route,) = FastAPIRouteDiscovery(app).discover_routes("ws://localhost:8000")
+
+    assert route.path_params == {"tenant": "str", "room": "str"}

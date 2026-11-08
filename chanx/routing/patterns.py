@@ -13,8 +13,8 @@ from typing import Any
 REGEX_PARAM_PATTERN = r"\(\?P<([^>]+)>([^)]+)\)"
 """Pattern for Python regex named groups like (?P<name>pattern)."""
 
-DJANGO_PARAM_PATTERN = r"<(\w+):(\w+)>"
-"""Pattern for Django path parameters like <type:name>."""
+DJANGO_PARAM_PATTERN = r"(?<!\?P)<(?:(\w+):)?(\w+)>"
+"""Pattern for Django path parameters like <type:name> or <name>, not (?P<name>."""
 
 STARLETTE_PARAM_PATTERN = r"\{(\w+)(?::(\w+))?\}"
 """Pattern for Starlette/FastAPI path parameters like {name} or {name:type}."""
@@ -75,7 +75,7 @@ def extract_path_parameters(pattern: str) -> dict[str, str]:
     django_matches = re.findall(DJANGO_PARAM_PATTERN, pattern)
     if django_matches:
         for converter_type, param_name in django_matches:
-            path_params[param_name] = converter_type
+            path_params[param_name] = converter_type or "str"
 
     # Second, extract Starlette/FastAPI path parameters: {name} or {name:type}
     starlette_matches = re.findall(STARLETTE_PARAM_PATTERN, pattern)

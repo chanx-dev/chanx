@@ -12,7 +12,10 @@ from django.http import HttpRequest
 
 from chanx.channels.websocket import AsyncJsonWebsocketConsumer
 from chanx.routing.discovery import RouteDiscovery, RouteInfo, expand_topic_routes
-from chanx.routing.patterns import get_pattern_string_and_params
+from chanx.routing.patterns import (
+    extract_path_parameters,
+    get_pattern_string_and_params,
+)
 from chanx.routing.traversal import traverse_middleware_stack
 from chanx.utils.logging import logger
 
@@ -90,8 +93,7 @@ class DjangoRouteDiscovery(RouteDiscovery):
         router_routes = cast(list[_ExtendedURLPattern], router.routes)
         for route in router_routes:
             try:
-                # Get the pattern string and extract path parameters
-                pattern, path_params = get_pattern_string_and_params(route)
+                pattern, _ = get_pattern_string_and_params(route)
 
                 # Build the full path
                 full_path: str = f"{prefix}{pattern}"
@@ -114,7 +116,7 @@ class DjangoRouteDiscovery(RouteDiscovery):
                             path=full_path,
                             handler=handler,
                             base_url=base_url,
-                            path_params=path_params,
+                            path_params=extract_path_parameters(full_path) or None,
                             consumer=consumer,
                         )
                     )

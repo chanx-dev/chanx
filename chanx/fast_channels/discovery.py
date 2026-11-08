@@ -80,7 +80,7 @@ class FastAPIRouteDiscovery(RouteDiscovery):
                 consumer_class = self._extract_consumer_from_endpoint(route.endpoint)
 
                 # Extract path parameters if any
-                path_params = self._extract_path_params(route.path)
+                path_params = self._extract_path_params(full_path)
 
                 route_info = RouteInfo(
                     path=full_path,

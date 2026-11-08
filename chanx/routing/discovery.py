@@ -55,7 +55,9 @@ class RouteInfo:
             # Replace regex patterns with {param} format for AsyncAPI
             path = path.replace(f"(?P<{param_name}>{pattern})", f"{{{param_name}}}")
             # Also handle Django-style path parameters
-            path = re.sub(rf"<\w+:{param_name}>", f"{{{param_name}}}", path)
+            path = re.sub(
+                rf"(?<!\?P)<(?:\w+:)?{param_name}>", f"{{{param_name}}}", path
+            )
         return path
 
 
