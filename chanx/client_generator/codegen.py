@@ -36,6 +36,9 @@ def generate_pydantic_code(
     needs_discriminator = any(
         _schema_needs_discriminator(schema) for schema in active_schemas
     )
+    needs_default_factory = any(
+        _schema_needs_default_factory(schema) for schema in active_schemas
+    )
 
     # Add imports
     typing_imports = ["Literal"]
@@ -46,7 +49,7 @@ def generate_pydantic_code(
     lines.append(f"from typing import {', '.join(typing_imports)}")
     lines.append("")
     pydantic_imports = ["BaseModel"]
-    if needs_discriminator:
+    if needs_discriminator or needs_default_factory:
         pydantic_imports.append("Field")
     lines.append(f"from pydantic import {', '.join(pydantic_imports)}")
     lines.append("")
@@ -139,6 +142,30 @@ def _get_discriminator_info(
     return None
 
 
+def _default_factory(
+    field_schema: SchemaObject, is_required: bool, default_value: Any
+) -> str | None:
+    """Factory for an optional list/dict, whose schema has no default (default_factory)."""
+    if is_required or default_value is not None:
+        return None
+    schema_type = getattr(field_schema, "type", None)
+    if schema_type == "array":
+        return "list"
+    if schema_type == "object" and not getattr(field_schema, "properties", None):
+        return "dict"
+    return None
+
+
+def _schema_needs_default_factory(schema: SchemaObject) -> bool:
+    """Check if a schema has any field using a default factory."""
+    properties: dict[str, SchemaObject] = getattr(schema, "properties", {})
+    required = getattr(schema, "required", None) or list[str]()
+    return any(
+        _default_factory(fs, name in required, getattr(fs, "default", None)) is not None
+        for name, fs in properties.items()
+    )
+
+
 def _schema_needs_discriminator(schema: SchemaObject) -> bool:
     """Check if a schema has any field using a discriminated union."""
     properties: dict[str, SchemaObject] = getattr(schema, "properties", {})
@@ -204,6 +231,10 @@ def _generate_class(schema: SchemaObject) -> list[str]:
         elif is_required and default_value is None:
             # Required field with no default
             lines.append(f"    {field_name}: {python_type}")
+        elif factory := _default_factory(field_schema, is_required, default_value):
+            lines.append(
+                f"    {field_name}: {python_type} = Field(default_factory={factory})"
+            )
         elif default_value is not None:
             # Has default value
             if isinstance(default_value, str):

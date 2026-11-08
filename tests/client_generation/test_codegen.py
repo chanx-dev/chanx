@@ -255,3 +255,52 @@ class TestGeneratePydanticCodeImports:
         assert "from typing import Literal" in code
         assert "Annotated" not in code
         assert "Field" not in code
+
+
+class TestDefaultFactoryFields:
+    def test_optional_array_without_a_default_keeps_its_type(self) -> None:
+        schema = SchemaObject(
+            title="Decided",
+            type="object",
+            properties={
+                "urls": SchemaObject(type="array", items=SchemaObject(type="string"))
+            },
+        )
+        code = "\n".join(_generate_class(schema))
+        assert "urls: list[str] = Field(default_factory=list)" in code
+
+    def test_optional_free_form_object_gets_a_dict_factory(self) -> None:
+        schema = SchemaObject(
+            title="Meta",
+            type="object",
+            properties={"extra": SchemaObject(type="object")},
+        )
+        code = "\n".join(_generate_class(schema))
+        assert "= Field(default_factory=dict)" in code
+
+    def test_nullable_array_stays_nullable(self) -> None:
+        schema = SchemaObject(
+            title="Maybe",
+            type="object",
+            properties={
+                "urls": SchemaObject(
+                    anyOf=[
+                        SchemaObject(type="array", items=SchemaObject(type="string")),
+                        SchemaObject(type="null"),
+                    ]
+                )
+            },
+        )
+        code = "\n".join(_generate_class(schema))
+        assert "urls: list[str] | None = None" in code
+
+    def test_field_is_imported_for_a_default_factory(self) -> None:
+        schema = SchemaObject(
+            title="Decided",
+            type="object",
+            properties={
+                "urls": SchemaObject(type="array", items=SchemaObject(type="string"))
+            },
+        )
+        code = generate_pydantic_code([schema])
+        assert "from pydantic import BaseModel, Field" in code
