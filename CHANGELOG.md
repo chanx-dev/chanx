@@ -1,3 +1,16 @@
+## v2.15.0 (2026-11-10)
+
+### Feat
+
+- cancel_handlers_on_disconnect to stop a connection's in-flight handlers
+
+### Fix
+
+- **asyncapi**: give Django channel addresses a leading slash
+- **client-generator**: log unparseable and error frames instead of printing them
+- **client-generator**: keep a defaulted list or dict non-nullable
+- **asyncapi**: find path parameters in include prefixes and bare <name> converters
+
 ## v2.14.0 (2026-11-03)
 
 ### Feat

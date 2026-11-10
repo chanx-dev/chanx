@@ -124,7 +124,7 @@ license = {file = "LICENSE"}
 name = "chanx"
 readme = "README.md"
 requires-python = ">=3.11,<4.0"
-version = "2.14.0"
+version = "2.15.0"
 
 [project.optional-dependencies]
 channels = [
