@@ -38,4 +38,14 @@ def test_channel_path_renders_bare_and_typed_django_parameters() -> None:
         path_params={"lang": "str", "room_id": "int"},
         consumer=_Consumer,
     )
-    assert route.channel_path == "ws/{lang}/rooms/{room_id}/"
+    assert route.channel_path == "/ws/{lang}/rooms/{room_id}/"
+
+
+def test_channel_path_is_absolute_without_parameters() -> None:
+    route = RouteInfo(
+        path="ws/notifications",
+        handler=Mock(),
+        base_url="ws://localhost",
+        consumer=_Consumer,
+    )
+    assert route.channel_path == "/ws/notifications"

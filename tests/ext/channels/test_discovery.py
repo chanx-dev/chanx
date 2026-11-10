@@ -20,4 +20,4 @@ def test_a_parameter_in_an_include_prefix_is_a_route_parameter() -> None:
 
     (route,) = routes
     assert route.path_params == {"lang": "str"}
-    assert route.channel_path == "ws/{lang}/notifications/"
+    assert route.channel_path == "/ws/{lang}/notifications/"

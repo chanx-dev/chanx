@@ -9,7 +9,7 @@ servers:
     protocol: ws
 channels:
   assistants:
-    address: ws/assistants/{pk}/
+    address: /ws/assistants/{pk}/
     title: assistants
     description: AI Assistant WebSocket API
     parameters:
@@ -32,7 +32,7 @@ channels:
     - name: ai
     - name: chat
   discussionList:
-    address: ws/discussion/
+    address: /ws/discussion/
     title: discussion_list
     description: '
 
@@ -56,7 +56,7 @@ channels:
       voteUpdatedMessage:
         $ref: '#/components/messages/voteUpdatedMessage'
   discussionTopic:
-    address: ws/discussion/{pk}/
+    address: /ws/discussion/{pk}/
     title: discussion_topic
     description: '
 
@@ -84,7 +84,7 @@ channels:
       voteUpdatedMessage:
         $ref: '#/components/messages/voteUpdatedMessage'
   groupChat:
-    address: ws/chat/group/
+    address: /ws/chat/group/
     title: group_chat
     description: '
 
@@ -103,7 +103,7 @@ channels:
       removedFromGroupMessage:
         $ref: '#/components/messages/removedFromGroupMessage'
   chatDetail:
-    address: ws/chat/{pk}/
+    address: /ws/chat/{pk}/
     title: chat_detail
     description: WebSocket consumer for group chat details.
     parameters:

@@ -47,18 +47,16 @@ class RouteInfo:
         This method is used by AsyncAPI generation to create user-friendly
         path representations.
         """
-        if not self.path_params:
-            return self.path
-
         path = self.path
-        for param_name, pattern in self.path_params.items():
+        for param_name, pattern in (self.path_params or {}).items():
             # Replace regex patterns with {param} format for AsyncAPI
             path = path.replace(f"(?P<{param_name}>{pattern})", f"{{{param_name}}}")
             # Also handle Django-style path parameters
             path = re.sub(
                 rf"(?<!\?P)<(?:\w+:)?{param_name}>", f"{{{param_name}}}", path
             )
-        return path
+        # Django routes lack the leading slash clients need to join onto a host.
+        return "/" + path.lstrip("/")
 
 
 def expand_topic_routes(routes: list[RouteInfo]) -> list[RouteInfo]:

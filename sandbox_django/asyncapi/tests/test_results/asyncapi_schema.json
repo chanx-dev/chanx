@@ -13,7 +13,7 @@
   },
   "channels": {
     "assistants": {
-      "address": "ws/assistants/{pk}/",
+      "address": "/ws/assistants/{pk}/",
       "title": "assistants",
       "description": "AI Assistant WebSocket API",
       "parameters": {
@@ -51,7 +51,7 @@
       ]
     },
     "discussionList": {
-      "address": "ws/discussion/",
+      "address": "/ws/discussion/",
       "title": "discussion_list",
       "description": "\nWebSocket consumer for discussion topic list view.\n\nHandles global discussion updates like new topics, votes, and answer acceptance/unacceptance.\n",
       "messages": {
@@ -76,7 +76,7 @@
       }
     },
     "discussionTopic": {
-      "address": "ws/discussion/{pk}/",
+      "address": "/ws/discussion/{pk}/",
       "title": "discussion_topic",
       "description": "\nWebSocket consumer for discussion topic detail view.\n\nHandles topic-specific operations like replying, voting, and accepting/unaccepting answers.\n",
       "parameters": {
@@ -106,7 +106,7 @@
       }
     },
     "groupChat": {
-      "address": "ws/chat/group/",
+      "address": "/ws/chat/group/",
       "title": "group_chat",
       "description": "\nWebSocket consumer for group chat updates.\n",
       "messages": {
@@ -128,7 +128,7 @@
       }
     },
     "chatDetail": {
-      "address": "ws/chat/{pk}/",
+      "address": "/ws/chat/{pk}/",
       "title": "chat_detail",
       "description": "WebSocket consumer for group chat details.",
       "parameters": {
