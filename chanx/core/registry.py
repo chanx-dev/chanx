@@ -11,7 +11,8 @@ from types import UnionType
 from typing import Any, TypeAlias, Union, cast, get_args, get_origin, get_type_hints
 
 import humps
-from pydantic import BaseModel
+from pydantic import AliasChoices, AliasPath, BaseModel
+from pydantic.fields import FieldInfo
 
 from chanx.asyncapi.type_defs import SchemaObject, normalize_discriminators
 from chanx.messages.base import BaseMessage
@@ -35,6 +36,39 @@ def clean_consumer_name(consumer_name: str) -> str:
         Consumer name without 'Consumer' suffix
     """
     return consumer_name.removesuffix("Consumer")
+
+
+def get_schema_property_name(name: str, field: FieldInfo | None) -> str:
+    """
+    Get the key pydantic uses for a field in a validation-mode JSON schema.
+
+    Pydantic keys schema ``properties`` by the field's validation alias, then
+    its alias, and only then by its Python name.
+
+    Args:
+        name: The field's Python name
+        field: The field's info, or None if it is not a model field
+
+    Returns:
+        The property name used in the model's JSON schema
+    """
+    if field is None:
+        return name
+    alias = (
+        field.validation_alias if field.validation_alias is not None else field.alias
+    )
+    if isinstance(alias, str):
+        return alias
+    if isinstance(alias, AliasPath):
+        paths = [alias.convert_to_aliases()]
+    elif isinstance(alias, AliasChoices):
+        paths = alias.convert_to_aliases()
+    else:
+        return name
+    for path in paths:
+        if len(path) == 1 and isinstance(path[0], str):
+            return path[0]
+    return name
 
 
 def get_asyncapi_schema_ref(schema_title: str) -> str:
@@ -258,6 +292,7 @@ class MessageRegistry:
         model_schema: dict[str, Any],
         ref_fields: set[str],
         model_type_fields: dict[str, Any],
+        model_fields: dict[str, FieldInfo],
     ) -> None:
         """
         Update schema with proper references.
@@ -270,6 +305,7 @@ class MessageRegistry:
             model_schema: The schema to update
             ref_fields: Fields that are direct BaseModel references
             model_type_fields: Original field type mapping
+            model_fields: The model's fields, used to find each field's alias
         """
         # Process $defs first - extract and register them as separate schemas
         defs = model_schema.pop("$defs", None)
@@ -285,7 +321,8 @@ class MessageRegistry:
 
         if ref_fields:
             for ref in ref_fields:
-                properties[ref] = {"$ref": self.schemas[model_type_fields[ref]]}
+                key = get_schema_property_name(ref, model_fields.get(ref))
+                properties[key] = {"$ref": self.schemas[model_type_fields[ref]]}
 
         # Recursively update all $ref pointers and discriminator mappings
         self._update_ref_recursively(model_schema, defs_to_schemas)
@@ -335,7 +372,9 @@ class MessageRegistry:
         ref_fields = self._process_field_types(model_type_fields, consumer_name)
 
         # Update references
-        self._update_schema_references(model_schema, ref_fields, model_type_fields)
+        self._update_schema_references(
+            model_schema, ref_fields, model_type_fields, concrete_type.model_fields
+        )
 
         # Store the schema
         self.schemas[concrete_type] = get_asyncapi_schema_ref(model_schema["title"])
