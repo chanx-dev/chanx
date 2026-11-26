@@ -9,7 +9,8 @@ from typing import Annotated, Any, Literal
 
 from chanx.core.registry import MessageRegistry
 from chanx.messages.base import BaseMessage
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 from typing_extensions import TypedDict
 
 
@@ -529,3 +530,31 @@ class TestMessageRegistry:
 
         schema_json = json.dumps(registry.schema_objects)
         assert "#/$defs/" not in schema_json
+
+    def test_build_messages_with_aliased_model_field(self) -> None:
+        """A model-typed field is listed once, under its alias."""
+
+        class Inner(BaseModel):
+            a: str
+
+        class AliasedPayload(BaseModel):
+            model_config = ConfigDict(alias_generator=to_camel)
+
+            my_field: Inner
+            other_field: Inner = Field(alias="other")
+            third_field: Inner = Field(validation_alias="third")
+            fourth_field: Inner = Field(
+                validation_alias=AliasChoices(AliasPath("x", "y"), "fourth")
+            )
+
+        registry = MessageRegistry()
+        registry.build_message_schema(AliasedPayload, "TestConsumer")
+
+        schema = registry.schema_objects["AliasedPayload"]
+        properties = schema["properties"]
+        inner_ref = {"$ref": "#/components/schemas/Inner"}
+
+        assert set(properties) == {"myField", "other", "third", "fourth"}
+        for key in properties:
+            assert properties[key] == inner_ref
+        assert set(schema["required"]) == set(properties)
